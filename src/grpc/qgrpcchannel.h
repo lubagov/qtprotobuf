@@ -36,7 +36,7 @@
 namespace QtProtobuf {
 
 class QAbstractGrpcCredentials;
-struct QGrpcChannelPrivate;
+class QGrpcChannelPrivate;
 
 /*!
  * \ingroup QtGrpc
