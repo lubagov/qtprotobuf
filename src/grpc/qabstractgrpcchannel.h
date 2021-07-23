@@ -42,6 +42,7 @@ class QGrpcAsyncReply;
 class QGrpcSubscription;
 class QAbstractGrpcClient;
 class QAbstractProtobufSerializer;
+class QGrpcSubscriptionBidirect;
 struct QAbstractGrpcChannelPrivate;
 /*!
  * \ingroup QtGrpc
@@ -87,6 +88,16 @@ public:
      */
     virtual void subscribe(QGrpcSubscription *subscription, const QString &service, QAbstractGrpcClient *client) = 0;
 
+    /*!
+     * \brief Subscribes to server-side stream to receive and send updates for given \p method.
+     *        \note This method should not be called directly.
+     * \param[in] method remote method is called
+     * \param[in] service service identified in URL path format
+     * \param[in] args serialized argument message
+     * \param[in] handler callback that will be called when message recevied from the server-stream
+     */
+    virtual void subscribe(QGrpcSubscriptionBidirect *subscription, const QString &service, QAbstractGrpcClient *client) = 0;
+
     virtual std::shared_ptr<QAbstractProtobufSerializer> serializer() const = 0;
 
     const QThread *thread() const;
@@ -111,8 +122,16 @@ protected:
      */
     virtual void cancel(QGrpcSubscription *subscription);
 
+    /*!
+     * \private
+     * \brief Cancels \p subscription
+     * \param[in] subscription returned by QAbstractGrpcChannel::subscribe() method
+     */
+    virtual void cancel(QGrpcSubscriptionBidirect *subscription);
+
     friend class QGrpcAsyncReply;
     friend class QGrpcSubscription;
+    friend class QGrpcSubscriptionBidirect;
 private:
     Q_DISABLE_COPY(QAbstractGrpcChannel)
     std::unique_ptr<QAbstractGrpcChannelPrivate> dPtr;

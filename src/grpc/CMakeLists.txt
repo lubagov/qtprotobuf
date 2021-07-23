@@ -1,8 +1,10 @@
 qt_protobuf_internal_add_library(Grpc
     SOURCES
         qgrpcasyncoperationbase.cpp
+        qgrpcasyncoperationwritebase.cpp
         qgrpcasyncreply.cpp
         qgrpcsubscription.cpp
+        qgrpcsubscriptionbidirect.cpp
         qgrpcstatus.cpp
         qabstractgrpcchannel.cpp
         qgrpchttp2channel.cpp
@@ -13,8 +15,10 @@ qt_protobuf_internal_add_library(Grpc
         qgrpcuserpasswordcredentials.cpp
     PUBLIC_HEADER
         qgrpcasyncoperationbase_p.h
+        qgrpcasyncoperationwritebase_p.h
         qgrpcasyncreply.h
         qgrpcsubscription.h
+        qgrpcsubscriptionbidirect.h
         qgrpcstatus.h
         qabstractgrpcchannel.h
         qgrpchttp2channel.h
@@ -25,6 +29,7 @@ qt_protobuf_internal_add_library(Grpc
         qgrpcinsecurecredentials.h
         qgrpcuserpasswordcredentials.h
         qtgrpcglobal.h
+        qgrpcwritereplay.h
     PUBLIC_LIBRARIES
         ${QT_PROTOBUF_NAMESPACE}::Protobuf
         Qt5::Core
@@ -40,7 +45,9 @@ if(QT_PROTOBUF_NATIVE_GRPC_CHANNEL)
         PUBLIC_DEFINES
             QT_PROTOBUF_NATIVE_GRPC_CHANNEL
         PUBLIC_LIBRARIES
-            gRPC::grpc++
+            #TODO Coment it, to prevent linker errors with Empty and other protobuf wellknown types
+            #gRPC::grpc++
+            grpc++
             ${CMAKE_THREAD_LIBS_INIT}
     )
 endif()

@@ -50,6 +50,7 @@ void ClientDefinitionPrinter::printMethods()
         if (method->server_streaming()) {
             mPrinter->Print(parameters, Templates::ClientMethodServerStreamDefinitionTemplate);
             mPrinter->Print(parameters, Templates::ClientMethodServerStream2DefinitionTemplate);
+            mPrinter->Print(parameters, Templates::ClientMethodServerStream2DefinitionTemplate2);
             if (GeneratorOptions::instance().hasQml()) {
                 mPrinter->Print(parameters, Templates::ClientMethodServerStreamQmlDefinitionTemplate);
             }

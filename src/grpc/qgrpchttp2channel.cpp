@@ -38,6 +38,7 @@
 
 #include "qgrpcasyncreply.h"
 #include "qgrpcsubscription.h"
+#include "qgrpcsubscriptionbidirect.h"
 #include "qabstractgrpcclient.h"
 #include "qgrpccredentials.h"
 #include "qprotobufserializerregistry_p.h"
@@ -267,6 +268,11 @@ void QGrpcHttp2Channel::call(const QString &method, const QString &service, cons
             networkReply->deleteLater();
         }
     });
+}
+
+
+void QGrpcHttp2Channel::subscribe(QGrpcSubscriptionBidirect *subscription, const QString &service, QAbstractGrpcClient *client) {
+    Q_ASSERT_X(false, "subscribe", "Not implemented in QtNetwork channel");
 }
 
 void QGrpcHttp2Channel::subscribe(QGrpcSubscription *subscription, const QString &service, QAbstractGrpcClient *client)

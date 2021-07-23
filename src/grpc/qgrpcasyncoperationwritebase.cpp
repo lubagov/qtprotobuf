@@ -2,6 +2,7 @@
  * MIT License
  *
  * Copyright (c) 2019 Alexey Edelev <semlanik@gmail.com>
+ * Copyright (c) 2021 Nikolai Lubiagov <lubagov@gmail.com>
  *
  * This file is part of QtProtobuf project https://git.semlanik.org/semlanik/qtprotobuf
  *
@@ -23,51 +24,16 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#include "qabstractgrpcchannel.h"
+#include "qgrpcasyncoperationwritebase_p.h"
 
-#include "qgrpcasyncreply.h"
-#include "qgrpcsubscription.h"
-#include "qgrpcsubscriptionbidirect.h"
-#include <QThread>
+#include <qtprotobuflogging.h>
 
-namespace QtProtobuf {
+using namespace QtProtobuf;
 
-struct QAbstractGrpcChannelPrivate {
-    QAbstractGrpcChannelPrivate() : thread(QThread::currentThread()) {
-        assert(thread != nullptr && "QAbstractGrpcChannel has to be created in QApplication context");
-    }
-    const QThread *thread;
-};
-
-QAbstractGrpcChannel::QAbstractGrpcChannel() : dPtr(new QAbstractGrpcChannelPrivate)
+QGrpcAsyncOperationWriteBase::~QGrpcAsyncOperationWriteBase()
 {
-
-}
-
-QAbstractGrpcChannel::~QAbstractGrpcChannel() = default;
-
-void QAbstractGrpcChannel::abort(QGrpcAsyncReply *reply)
-{
-    assert(reply != nullptr);
-    reply->setData({});
-    reply->error({QGrpcStatus::StatusCode::Aborted, QLatin1String("Call aborted by user or timeout")});
-}
-
-void QAbstractGrpcChannel::cancel(QGrpcSubscription *subscription)
-{
-    assert(subscription != nullptr);
-    subscription->finished();
-}
-
-void QAbstractGrpcChannel::cancel(QGrpcSubscriptionBidirect *subscription)
-{
-    assert(subscription != nullptr);
-    subscription->finished();
-}
-
-const QThread *QAbstractGrpcChannel::thread() const
-{
-    return dPtr->thread;
-}
-
+    qProtoDebug() << "Trying ~QGrpcAsyncOperationWriteBase" << this;
+    QMutexLocker locker(&m_asyncLock);
+    qProtoDebug() << "~QGrpcAsyncOperationBase" << this;
+    (void)locker;
 }

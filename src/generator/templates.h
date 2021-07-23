@@ -200,9 +200,11 @@ public:
     static const char *ClientMethodSignalDeclarationTemplate;
     static const char *ClientMethodServerStreamDeclarationTemplate;
     static const char *ClientMethodServerStream2DeclarationTemplate;
+    static const char *ClientMethodServerStream2DeclarationTemplate2;
     static const char *ClientMethodServerStreamQmlDeclarationTemplate;
     static const char *ClientMethodServerStreamDefinitionTemplate;
     static const char *ClientMethodServerStream2DefinitionTemplate;
+    static const char *ClientMethodServerStream2DefinitionTemplate2;
     static const char *ClientMethodServerStreamQmlDefinitionTemplate;
 
     static const char *ListSuffix;

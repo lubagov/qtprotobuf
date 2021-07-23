@@ -67,6 +67,7 @@ void ClientDeclarationPrinter::printClientIncludes()
     includeSet.insert("QAbstractGrpcClient");
     includeSet.insert("QGrpcAsyncReply");
     includeSet.insert("QGrpcSubscription");
+    includeSet.insert("QGrpcSubscriptionBidirect");
     for (auto type : includeSet) {
         mPrinter->Print({{"include", type}}, Templates::ExternalIncludeTemplate);
     }
@@ -82,6 +83,7 @@ void ClientDeclarationPrinter::printClientMethodsDeclaration()
         if (method->server_streaming()) {
             mPrinter->Print(parameters, Templates::ClientMethodServerStreamDeclarationTemplate);
             mPrinter->Print(parameters, Templates::ClientMethodServerStream2DeclarationTemplate);
+            mPrinter->Print(parameters, Templates::ClientMethodServerStream2DeclarationTemplate2);
         } else {
             mPrinter->Print(parameters, Templates::ClientMethodDeclarationSyncTemplate);
             mPrinter->Print(parameters, Templates::ClientMethodDeclarationAsyncTemplate);

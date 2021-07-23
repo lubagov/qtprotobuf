@@ -101,6 +101,7 @@ protected:
     virtual ~QGrpcAsyncOperationBase();
 
     std::shared_ptr<QAbstractGrpcChannel> m_channel;
+    QMutex m_asyncLock;
 private:
     QGrpcAsyncOperationBase();
     Q_DISABLE_COPY_MOVE(QGrpcAsyncOperationBase)
@@ -108,7 +109,6 @@ private:
     friend class QAbstractGrpcClient;
 
     QByteArray m_data;
-    QMutex m_asyncLock;
 };
 
 }

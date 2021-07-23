@@ -49,6 +49,7 @@ namespace QtProtobuf {
 class QGrpcAsyncReply;
 class QGrpcSubscription;
 class QGrpcAsyncOperationBase;
+class QGrpcAsyncOperationWriteBase;
 class QAbstractGrpcChannel;
 class QAbstractGrpcClientPrivate;
 
@@ -141,6 +142,17 @@ protected:
 
     /*!
      * \private
+     * \brief Subscribes to message notifications from bidirect-stream
+     * \param[in] method Name of the method to be called
+     * \param[out] signal Callback with return-message as input parameter that will be called each time message
+     *             update recevied from server-stream and write method called each message to send from client-stream
+     */
+    QGrpcSubscriptionBidirectShared subscribe(const QString &method){
+        return subscribeBidirect(method, QtProtobuf::SubscriptionHandler{});
+    }
+
+    /*!
+     * \private
      * \brief Subscribes to message notifications from server-stream with given message argument \a arg
      * \param[in] method Name of the method to be called
      * \param[in] arg Protobuf message argument for \p method
@@ -182,6 +194,7 @@ protected:
     QAbstractProtobufSerializer *serializer() const;
 
     friend class QGrpcAsyncOperationBase;
+    friend class QGrpcAsyncOperationWriteBase;
 private:
     //!\private
     QGrpcStatus call(const QString &method, const QByteArray &arg, QByteArray &ret);
@@ -191,6 +204,9 @@ private:
 
     //!\private
     QGrpcSubscriptionShared subscribe(const QString &method, const QByteArray &arg, const QtProtobuf::SubscriptionHandler &handler = {});
+
+    //!\private
+    QGrpcSubscriptionBidirectShared subscribeBidirect(const QString &method, const QtProtobuf::SubscriptionHandler &handler = {});
 
     /*!
      * \private

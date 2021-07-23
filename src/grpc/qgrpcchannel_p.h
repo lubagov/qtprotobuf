@@ -27,6 +27,7 @@
 #include <QEventLoop>
 #include <QThread>
 
+#include <QQueue>
 #include <grpcpp/channel.h>
 #include <grpcpp/impl/codegen/byte_buffer.h>
 #include <grpcpp/impl/codegen/client_context.h>
@@ -38,6 +39,7 @@
 #include "qabstractgrpccredentials.h"
 #include "qgrpcasyncreply.h"
 #include "qgrpcsubscription.h"
+#include "qgrpcsubscriptionbidirect.h"
 #include "qabstractgrpcclient.h"
 #include "qgrpccredentials.h"
 #include "qprotobufserializerregistry_p.h"
@@ -45,67 +47,53 @@
 
 namespace QtProtobuf {
 
-class FinishStatus;
+struct FunctionCall{
+    QObject* m_parent;
+    std::function<void(bool)> m_method;
 
-class QGrpcChannelBaseAbstract: public QObject{
-    Q_OBJECT
-
-public:
-    virtual void newData(bool ok)=0;
-    QGrpcChannelBaseAbstract(QObject* parent):QObject(parent){};
+    void callMethod(bool arg){
+        QMetaObject::invokeMethod(m_parent, [this, arg](){m_method(arg);}, Qt::QueuedConnection);
+    }
 };
 
-class QGrpcChannelBaseCall : public QGrpcChannelBaseAbstract{
+//! \private
+class QGrpcChannelBaseCall : public QObject{
     Q_OBJECT
-
 public:
+    //! \private
     typedef enum ReaderState {
         FIRST_CALL=0,
         PROCESSING,
         ENDED
     } ReaderState;
 
-    QGrpcStatus status;
-    virtual void finish_recived(bool ok)=0;
+    QGrpcStatus m_status;
     QGrpcChannelBaseCall(grpc::Channel *channel, grpc::CompletionQueue* queue,
-                        const QString &method, const QByteArray &argument, QObject* parent=nullptr):
-                        QGrpcChannelBaseAbstract(parent),readerState(FIRST_CALL), reader(nullptr),channel(channel),
-                        queue(queue),method(method),argument(argument){}
+                        const QString &method, QObject* parent=nullptr):
+                        QObject(parent),m_readerState(FIRST_CALL),m_channel(channel),
+                        m_queue(queue),m_method(method){}
 
 protected:
-    FinishStatus* finish_status;
-    ReaderState readerState;
-    ::grpc::Status grpc_status;
+    ReaderState m_readerState;
+    ::grpc::Status m_grpc_status;
 
-    grpc::ClientContext context;
-    grpc::ClientAsyncReader<grpc::ByteBuffer> *reader;
+    grpc::ClientContext m_context;
     grpc::ByteBuffer response;
 
-    grpc::Channel *channel;
-    grpc::CompletionQueue* queue;
-    QString method;
-    QByteArray argument;
-};
-
-class FinishStatus:public QGrpcChannelBaseAbstract{
-    Q_OBJECT;
-
-private:
-    QGrpcChannelBaseCall* baseCall;
-
-public:
-    inline void newData(bool ok) override {
-        baseCall->finish_recived(ok);
-    };
-    FinishStatus(QGrpcChannelBaseCall* baseCall, QObject* parent):QGrpcChannelBaseAbstract(parent),baseCall(baseCall)
-    {
-    }
+    grpc::Channel *m_channel;
+    grpc::CompletionQueue* m_queue;
+    QString m_method;
 };
 
 //! \private
 class QGrpcChannelSubscription : public QGrpcChannelBaseCall {
     //! \private
     Q_OBJECT;
+private:
+    QByteArray m_argument;
+    grpc::ClientAsyncReader<grpc::ByteBuffer> *m_reader;
+    FunctionCall m_finishRead;
+    FunctionCall m_newData;
 
 public:
     QGrpcChannelSubscription(grpc::Channel *channel, grpc::CompletionQueue* queue, const QString &method,
@@ -113,8 +101,44 @@ public:
     ~QGrpcChannelSubscription();
     void startReader();
     void cancel();
-    void newData(bool ok) override;
-    void finish_recived(bool ok) override;
+    void newData(bool ok);
+    void finishRead(bool ok);
+
+signals:
+    void dataReady(const QByteArray &data);
+    void finished();
+};
+
+struct QGrpcChannelWiteData{
+    QByteArray data;
+    QGrpcWriteReplayShared replay;
+    bool done;
+};
+
+class QGrpcChannelSubscriptionBidirect : public QGrpcChannelBaseCall {
+    //! \private
+    Q_OBJECT
+private:
+    grpc::ClientAsyncReaderWriter<grpc::ByteBuffer,grpc::ByteBuffer> *m_reader;
+    QQueue<QGrpcChannelWiteData> m_sendQueue;
+    bool m_inProcess;
+    QGrpcWriteReplayShared m_currentWriteReplay;
+
+    FunctionCall m_finishWrite;
+    FunctionCall m_finishRead;
+    FunctionCall m_newData;
+
+public:
+    QGrpcChannelSubscriptionBidirect(grpc::Channel *channel, grpc::CompletionQueue* queue, const QString &method,
+                                     QObject *parent = nullptr);
+    ~QGrpcChannelSubscriptionBidirect();
+    void startReader();
+    void cancel();
+    void writeDone(const QGrpcWriteReplayShared& replay);
+    void appendToSend(const QByteArray& data, const QGrpcWriteReplayShared& replay);
+    void newData(bool ok);
+    void finishRead(bool ok);
+    void finishWrite(bool ok);
 
 signals:
     void dataReady(const QByteArray &data);
@@ -124,7 +148,12 @@ signals:
 //! \private
 class QGrpcChannelCall : public QGrpcChannelBaseCall {
     //! \private
-    Q_OBJECT;
+    Q_OBJECT
+private:
+    QByteArray m_argument;
+    grpc::ClientAsyncReader<grpc::ByteBuffer> *m_reader;
+    FunctionCall m_newData;
+    FunctionCall m_finishRead;
 
 public:
     QByteArray responseParsed;
@@ -133,9 +162,8 @@ public:
     ~QGrpcChannelCall();
     void startReader();
     void cancel();
-
-    void newData(bool ok) override;
-    void finish_recived(bool ok) override;
+    void newData(bool ok);
+    void finishRead(bool ok);
 
 signals:
     void finished();
@@ -146,9 +174,9 @@ class QGrpcChannelPrivate: public QObject {
     Q_OBJECT
     //! \private
 private:
-    QThread* thread;
+    QThread* m_workThread;
     std::shared_ptr<grpc::Channel> m_channel;
-    ::grpc::CompletionQueue queue;
+    ::grpc::CompletionQueue m_queue;
 
 public:
     QGrpcChannelPrivate(const QUrl &url, std::shared_ptr<grpc::ChannelCredentials> credentials);
@@ -157,6 +185,7 @@ public:
     void call(const QString &method, const QString &service, const QByteArray &args, QGrpcAsyncReply *reply);
     QGrpcStatus call(const QString &method, const QString &service, const QByteArray &args, QByteArray &ret);
     void subscribe(QGrpcSubscription *subscription, const QString &service, QAbstractGrpcClient *client);
+    void subscribe(QGrpcSubscriptionBidirect *subscription, const QString &service, QAbstractGrpcClient *client);
 signals:
     void finished();
 };
