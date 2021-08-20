@@ -74,7 +74,7 @@ public:
     /*!
      * \return return true, if write successful
      */
-    inline const bool ok() const{
+    inline bool ok() const{
         return m_status==OK;
     }
 
