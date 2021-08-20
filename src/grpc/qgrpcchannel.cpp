@@ -234,9 +234,27 @@ void QGrpcChannelCall::cancel()
     m_context.TryCancel();
 }
 
+#if !QT_CONFIG(cxx11_future)
+void QGrpcWorkThread::run(){
+    void* tag=nullptr;
+    bool ok=true;
+    while (m_queue.Next(&tag,&ok)) {
+        if(tag==nullptr){
+            qProtoDebug()<<"GrpcChannel recive null tag!";
+            continue;
+        }
+        FunctionCall* f=reinterpret_cast<FunctionCall*>(tag);
+        f->callMethod(ok);
+    }
+    qProtoDebug()<<"Exit form worker thread";
+    QThread::currentThread()->exit();
+}
+#endif
+
 QGrpcChannelPrivate::QGrpcChannelPrivate(const QUrl &url, std::shared_ptr<grpc::ChannelCredentials> credentials):QObject(nullptr)
 {
-    m_channel = grpc::CreateChannel(url.toString().toStdString(), credentials);
+    m_channel = grpc::CreateChannel(url.toString().toStdString(), credentials);       
+#if QT_CONFIG(cxx11_future)
     m_workThread = QThread::create([this](){
         void* tag=nullptr;
         bool ok=true;
@@ -250,6 +268,13 @@ QGrpcChannelPrivate::QGrpcChannelPrivate(const QUrl &url, std::shared_ptr<grpc::
         }
         qProtoDebug()<<"Exit form worker thread";
     });
+#else
+    m_workThread=new QThread();
+    m_workThread_object=new QGrpcWorkThread(m_queue);
+    m_workThread_object->moveToThread(m_workThread);
+    connect(m_workThread,&QThread::started,m_workThread_object,&QGrpcWorkThread::run);
+    connect(m_workThread,&QThread::finished,m_workThread_object,&QObject::deleteLater);
+#endif
     m_workThread->setObjectName("QGrpcChannel_worker");
     //Channel finished;
     connect(m_workThread, &QThread::finished, this, &QGrpcChannelPrivate::finished);

@@ -169,15 +169,32 @@ signals:
     void finished();
 };
 
+//Баг в версии Qt 5.15.2 для Android в результате которого cxx11_future всегда False.
+//Поэтому я не могу использовать QThread::create(), и как временное решение создаю отдельный объект
+#if !QT_CONFIG(cxx11_future)
+class QGrpcWorkThread:public QObject
+{
+    Q_OBJECT
+private:
+    ::grpc::CompletionQueue& m_queue;
+public:
+    QGrpcWorkThread(::grpc::CompletionQueue& queue):QObject(nullptr), m_queue(queue){}
+public slots:
+    void run();
+};
+#endif
+
 //! \private
 class QGrpcChannelPrivate: public QObject {
     Q_OBJECT
     //! \private
 private:
     QThread* m_workThread;
+#if !QT_CONFIG(cxx11_future)
+    QGrpcWorkThread* m_workThread_object;
+#endif
     std::shared_ptr<grpc::Channel> m_channel;
     ::grpc::CompletionQueue m_queue;
-
 public:
     QGrpcChannelPrivate(const QUrl &url, std::shared_ptr<grpc::ChannelCredentials> credentials);
     ~QGrpcChannelPrivate();
